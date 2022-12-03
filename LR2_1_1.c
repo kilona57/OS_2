@@ -105,7 +105,7 @@ int CopyFile(const char* destination_path, const char* source_path, const char* 
 			printf("Error opening %s\n", full_destination_path);
 			return -1;
 		}
-		buf = malloc(return_file_size(source_object) + 1);
+		buf = malloc(ReturnFileSize(source_object) + 1);
 		temp_char = fread(buf, 1, return_file_size(source_object) + 1, source_object);
 		fwrite(buf, 1, temp_char, destination_object);
 		free(buf);
