@@ -76,12 +76,56 @@ int FileExists(const char* path, const char* filename)
 	return 0;
 }
 
+int CopyFile(const char* destination_path, const char* source_path, const char* filename) {
+
+	char* full_source_path, * full_destination_path;
+	struct stat statbuf;
+
+	asprintf(&full_source_path, "%s/%s", source_path, filename);
+	asprintf(&full_destination_path, "%s/%s", destination_path, filename);
+
+	stat(full_source_path, &statbuf);
+
+	if (S_ISDIR(statbuf.st_mode))
+		mkdir(full_destination_path, statbuf.st_mode);
+	else if (S_ISREG(statbuf.st_mode)) {
+
+		FILE* source_object;
+		FILE* destination_object;
+		int temp_char;
+		char* buf;
+
+		if ((source_object = fopen(full_source_path, "r")) == NULL) {
+
+			printf("Error opening %s\n", full_source_path);
+			return -1;
+		}
+		if ((destination_object = fopen(full_destination_path, "w")) == NULL) {
+
+			printf("Error opening %s\n", full_destination_path);
+			return -1;
+		}
+		buf = malloc(return_file_size(source_object) + 1);
+		temp_char = fread(buf, 1, return_file_size(source_object) + 1, source_object);
+		fwrite(buf, 1, temp_char, destination_object);
+		free(buf);
+
+		chmod(full_destination_path, statbuf.st_mode);
+
+		fclose(source_object);
+		fclose(destination_object);
+
+		return 1;
+
+	}
+
+}
 
 void CopyDirContents(const char* destination_path, const char* source_path, int max_thread_count) 
 {
 	int available_thread_count = max_thread_count;
 
-	copy_dir_contents_recursive(destination_path, source_path, available_thread_count);
+	CopyDirContents(destination_path, source_path, available_thread_count);
 
 	struct dirent** file_buffer;
 	struct dirent** dir_buffer;
@@ -98,13 +142,13 @@ void CopyDirContents(const char* destination_path, const char* source_path, int 
 		{
 			if (FileExists(destination_path, file_buffer[i]->d_name) == 0) {
 
-				if ((*available_thread_count) == 0)
+				if (available_thread_count == 0)
 				{
 					wait(0);
-					(*available_thread_count)++;
+					available_thread_count++;
 				}
 
-				(*available_thread_count)--;
+				available_thread_count--;
 
 				pid_t pid;
 
@@ -115,7 +159,7 @@ void CopyDirContents(const char* destination_path, const char* source_path, int 
 				}
 				else if (pid == 0)
 				{
-					printf("Copying file: PID %d, Process available %d], Size %d Kb, Name [%s] \n", getpid(), (*available_thread_count), get_file_size(file_buffer[i], source_path) / 1024, file_buffer[i]->d_name);
+					printf("Copying file: PID %d, Process available %d], Size %d Kb, Name [%s] \n", getpid(), available_thread_count, GetFileSize(file_buffer[i], source_path) / 1024, file_buffer[i]->d_name);
 
 					CopyFile(destination_path, source_path, file_buffer[i]->d_name);
 
@@ -126,7 +170,7 @@ void CopyDirContents(const char* destination_path, const char* source_path, int 
 
 
 	if (dcount > 0)
-		for (int i = 0; i < dir_count; i++)
+		for (int i = 0; i < dcount; i++)
 		{
 			if (strcmp(dir_buffer[i]->d_name, ".") == 0 || strcmp(dir_buffer[i]->d_name, "..") == 0)
 				continue;
